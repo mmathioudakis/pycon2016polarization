@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
 import sklearn.cluster as cluster
 import sklearn.manifold as manifold
 import scipy.sparse as sp
@@ -13,26 +12,41 @@ def spectral_clusters(g, n_clusters):
                                 affinity = 'precomputed',
                                 random_state = SEED)
     
-    X = make_sparse_adj_matrix(g)
+    X = make_dense_adj_matrix(get_canonical(g))
     labels = spectral_clustering.fit_predict(X)
     return labels
 
-def make_sparse_adj_matrix(g):
+def get_canonical(g):
+    """
+    Parameters
+    ----------
+    g: undirected graph (networkx.Graph)
+    
+    Return
+    ------
+    A canonical version of the input graph.
+    """
+    canonical =  nx.Graph()
+    node_inv_idx = dict([(u, i) for i, u in enumerate(g.nodes())])
+    edge_set = g.edges(data = True)
+    for (u, v, d) in edge_set:
+        i = node_inv_idx[u]
+        j = node_inv_idx[v]
+        canonical.add_edge(i, j, d)
+    return canonical
+
+def make_dense_adj_matrix(g):
     """
     g: networkx.Graph()
     
-    return adjacency matrix in scipy.csr sparse format
+    return adjacency (nodes x nodes) matrix
     """
-    rows = []
-    columns = []
+    X = np.matrix(np.zeros((len(g), len(g))))
     it = g.adjacency_iter()
     for adj_list in it:
         u = adj_list[0]
         for v in adj_list[1].keys():
-            rows.append(u)
-            columns.append(v)
-    data = np.ones(len(rows))
-    X = sp.csr_matrix((data, (rows, columns)))
+            X[u, v] = 1
     assert(is_symmetric(X))
     return X
 
